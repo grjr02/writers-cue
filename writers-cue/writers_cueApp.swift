@@ -10,9 +10,11 @@ import SwiftData
 
 @main
 struct writers_cueApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            WritingProject.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -25,8 +27,38 @@ struct writers_cueApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            HomeView()
+                .onAppear {
+                    NotificationManager.shared.requestPermission()
+                }
         }
         .modelContainer(sharedModelContainer)
+        .onChange(of: scenePhase) { _, newPhase in
+            handleScenePhaseChange(newPhase)
+        }
+    }
+
+    private func handleScenePhaseChange(_ phase: ScenePhase) {
+        let context = sharedModelContainer.mainContext
+        let descriptor = FetchDescriptor<WritingProject>()
+
+        guard let projects = try? context.fetch(descriptor) else { return }
+
+        switch phase {
+        case .active:
+            NotificationManager.shared.refreshNotifications(for: projects)
+        case .background:
+            for project in projects {
+                // Schedule nudge notifications (handles both modes)
+                if project.nudgeEnabled {
+                    NotificationManager.shared.scheduleNudgeNotification(for: project)
+                }
+                NotificationManager.shared.scheduleDeadlineNotifications(for: project)
+            }
+        case .inactive:
+            break
+        @unknown default:
+            break
+        }
     }
 }
