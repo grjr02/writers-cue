@@ -119,6 +119,35 @@ class RichTextEditorController {
     }
 }
 
+/// Custom UITextView that normalizes pasted text to app typography
+class WritersCueTextView: UITextView {
+    var isDarkMode: Bool = false
+
+    override func paste(_ sender: Any?) {
+        // Get plain text from pasteboard
+        guard let pasteText = UIPasteboard.general.string else {
+            super.paste(sender)
+            return
+        }
+
+        // Apply body style to all pasted text
+        let bodyAttributes = TextStyle.body.attributes(isDarkMode: isDarkMode)
+        let processed = NSAttributedString(string: pasteText, attributes: bodyAttributes)
+
+        // Insert at current selection
+        let mutable = NSMutableAttributedString(attributedString: attributedText)
+        mutable.replaceCharacters(in: selectedRange, with: processed)
+
+        // Update text and cursor position
+        let newCursorPosition = selectedRange.location + processed.length
+        attributedText = mutable
+        selectedRange = NSRange(location: newCursorPosition, length: 0)
+
+        // Notify delegate
+        delegate?.textViewDidChange?(self)
+    }
+}
+
 struct RichTextEditor: UIViewRepresentable {
     @Binding var attributedText: NSAttributedString
     @Binding var selectedRange: NSRange
@@ -129,8 +158,9 @@ struct RichTextEditor: UIViewRepresentable {
     var tintColor: UIColor = .tintColor
     var isDarkMode: Bool = false
 
-    func makeUIView(context: Context) -> UITextView {
-        let textView = UITextView()
+    func makeUIView(context: Context) -> WritersCueTextView {
+        let textView = WritersCueTextView()
+        textView.isDarkMode = isDarkMode
         textView.delegate = context.coordinator
         textView.font = UIFont.preferredFont(forTextStyle: .body)
         textView.allowsEditingTextAttributes = true
@@ -151,7 +181,7 @@ struct RichTextEditor: UIViewRepresentable {
         return textView
     }
 
-    func updateUIView(_ textView: UITextView, context: Context) {
+    func updateUIView(_ textView: WritersCueTextView, context: Context) {
         if textView.attributedText != attributedText {
             let currentSelectedRange = textView.selectedRange
             textView.attributedText = attributedText
@@ -159,6 +189,7 @@ struct RichTextEditor: UIViewRepresentable {
         }
         textView.textColor = textColor
         textView.tintColor = tintColor
+        textView.isDarkMode = isDarkMode
     }
 
     func makeCoordinator() -> Coordinator {
