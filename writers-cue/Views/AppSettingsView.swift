@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AppSettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     private var themeManager: ThemeManager { ThemeManager.shared }
     private var authManager: AuthManager { AuthManager.shared }
     private var syncManager: SyncManager { SyncManager.shared }
@@ -18,14 +19,9 @@ struct AppSettingsView: View {
     @State private var showArchiveSheet = false
     @State private var showPrivacyPolicy = false
 
-    // Get system color scheme directly from UIKit for auto theme
-    private var systemColorScheme: ColorScheme {
-        UIScreen.main.traitCollection.userInterfaceStyle == .dark ? .dark : .light
-    }
-
-    // Use explicit color scheme - for auto, detect actual system setting
+    // Use the environment color scheme (respects preferredColorScheme)
     private var effectiveColorScheme: ColorScheme {
-        themeManager.colorScheme ?? systemColorScheme
+        colorScheme
     }
 
     private var panelBackground: Color {

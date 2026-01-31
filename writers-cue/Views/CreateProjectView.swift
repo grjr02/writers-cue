@@ -54,6 +54,7 @@ struct CreateProjectView: View {
 
                     Section {
                         Toggle("Enable nudges", isOn: $nudgeEnabled)
+                            .tint(Color(hex: "E4CFBA"))
                     } footer: {
                         Text(nudgeEnabled
                              ? "You'll receive gentle reminders to keep writing."

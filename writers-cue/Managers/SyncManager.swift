@@ -25,6 +25,7 @@ class SyncManager {
     /// Debounce timer for auto-sync after edits
     private var debounceTimer: Timer?
     private let debounceInterval: TimeInterval = 30  // 30 seconds
+    private weak var pendingProject: WritingProject?
 
     private var supabase: SupabaseClient {
         SupabaseManager.shared.client
@@ -43,9 +44,11 @@ class SyncManager {
 
         // Reset debounce timer
         debounceTimer?.invalidate()
+        pendingProject = project
         debounceTimer = Timer.scheduledTimer(withTimeInterval: debounceInterval, repeats: false) { [weak self] _ in
-            Task {
-                await self?.uploadProject(project)
+            Task { @MainActor in
+                guard let self = self, let project = self.pendingProject else { return }
+                await self.uploadProject(project)
             }
         }
     }

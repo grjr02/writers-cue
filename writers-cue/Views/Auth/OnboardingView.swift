@@ -43,7 +43,7 @@ struct OnboardingView: View {
                     OnboardingPage(
                         icon: "pencil.and.outline",
                         title: "Write your pieces",
-                        subtitle: "Create and manage your writing projects. Whether it's a story, article, or essay — keep everything in one place."
+                        subtitle: "Create and manage your writing projects. Whether it's a story, article, or essay, keep everything in one place."
                     )
                     .tag(0)
 

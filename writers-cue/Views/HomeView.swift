@@ -330,8 +330,6 @@ enum ActivityStatus {
 
     /// Status based on nudge settings (inactivity or daily mode)
     private static func statusFromNudgeSettings(project: WritingProject, calendar: Calendar, now: Date) -> ActivityStatus {
-        let lastEditedAt = project.lastEditedAt
-
         switch project.nudgeMode {
         case .afterInactivity:
             return inactivityModeStatus(project: project, calendar: calendar, now: now)

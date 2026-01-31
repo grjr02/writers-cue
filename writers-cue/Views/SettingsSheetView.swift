@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsSheetView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     @Binding var documentTitle: String
     @Binding var maxInactivityHours: Int
@@ -15,16 +16,9 @@ struct SettingsSheetView: View {
     @State private var editingTitle: String = ""
     @FocusState private var isTitleFocused: Bool
 
-    // Get ACTUAL system color scheme (not the sheet's overridden context)
-    private var systemColorScheme: ColorScheme {
-        // UIScreen.main.traitCollection gives the real system setting,
-        // not the view's overridden preferredColorScheme
-        UIScreen.main.traitCollection.userInterfaceStyle == .dark ? .dark : .light
-    }
-
-    // Use explicit color scheme - for auto, detect actual system setting
+    // Use the environment color scheme (respects preferredColorScheme)
     private var effectiveColorScheme: ColorScheme {
-        themeManager.colorScheme ?? systemColorScheme
+        colorScheme
     }
 
     private var currentColors: ThemeColors {
