@@ -139,6 +139,9 @@ struct RichTextEditor: UIViewRepresentable {
         textView.textColor = textColor
         textView.tintColor = tintColor
 
+        // Initialize typing attributes with body style for consistent paragraph spacing
+        textView.typingAttributes = TextStyle.body.attributes(isDarkMode: isDarkMode)
+
         // Setup keyboard observers
         context.coordinator.setupKeyboardObservers(for: textView)
 
@@ -297,8 +300,58 @@ struct RichTextEditor: UIViewRepresentable {
         func textViewDidChangeSelection(_ textView: UITextView) {
             parent.selectedRange = textView.selectedRange
 
+            // Sync typing attributes with the style at current cursor position
+            // This ensures new text/newlines use the correct paragraph style
+            syncTypingAttributesWithCursorPosition(textView)
+
             // Notify about formatting state change
             parent.controller?.notifyFormattingChange()
+        }
+
+        /// Syncs typing attributes to match the style at the current cursor position
+        private func syncTypingAttributesWithCursorPosition(_ textView: UITextView) {
+            let location = textView.selectedRange.location
+            let length = textView.attributedText.length
+
+            guard length > 0 else { return }
+
+            // Determine which position to get style from
+            let checkLocation: Int
+            if location == 0 {
+                checkLocation = 0
+            } else if location >= length {
+                checkLocation = length - 1
+            } else {
+                // When cursor is between characters, use the character to the left
+                checkLocation = location - 1
+            }
+
+            // Get the style at that position
+            let style = TextFormatter.styleAt(location: checkLocation, in: textView.attributedText)
+            let styleAttributes = style.attributes(isDarkMode: parent.isDarkMode)
+
+            // Merge style attributes into typing attributes (preserving bold/italic/underline)
+            var typingAttrs = textView.typingAttributes
+
+            // Preserve font traits (bold/italic) from current typing attributes
+            let currentFont = typingAttrs[.font] as? UIFont
+            var newFont = styleAttributes[.font] as! UIFont
+
+            if let currentFont = currentFont {
+                let traits = currentFont.fontDescriptor.symbolicTraits
+                if traits.contains(.traitBold) {
+                    newFont = newFont.withTraits(.traitBold)
+                }
+                if traits.contains(.traitItalic) {
+                    newFont = newFont.withTraits(.traitItalic)
+                }
+            }
+
+            typingAttrs[.font] = newFont
+            typingAttrs[.foregroundColor] = styleAttributes[.foregroundColor]
+            typingAttrs[.paragraphStyle] = styleAttributes[.paragraphStyle]
+
+            textView.typingAttributes = typingAttrs
         }
 
         func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
@@ -356,16 +409,42 @@ struct RichTextEditor: UIViewRepresentable {
                         let font = textView.attributedText.attribute(.font, at: checkLocation, effectiveRange: nil) as? UIFont
                         let currentStyle = TextStyle.detect(from: font)
 
-                        // If current line is a heading style, set typing attributes to body for new line
+                        // If current line is a heading style, manually insert newline with body style
+                        // This ensures consistent paragraph spacing for the new line
                         if currentStyle == .title || currentStyle == .heading || currentStyle == .subheading {
-                            DispatchQueue.main.async {
-                                let bodyAttributes = TextStyle.body.attributes(isDarkMode: self.parent.isDarkMode)
-                                var typingAttrs = textView.typingAttributes
-                                for (key, value) in bodyAttributes {
-                                    typingAttrs[key] = value
-                                }
-                                textView.typingAttributes = typingAttrs
+                            // Create body attributes for the new line
+                            let bodyAttributes = TextStyle.body.attributes(isDarkMode: self.parent.isDarkMode)
+
+                            // Create newline with body paragraph style (reset bold/italic for new paragraph)
+                            let newlineString = NSAttributedString(string: "\n", attributes: bodyAttributes)
+
+                            // Build the new attributed string
+                            let mutable = NSMutableAttributedString(attributedString: textView.attributedText)
+                            mutable.replaceCharacters(in: range, with: newlineString)
+
+                            // Update the text view
+                            textView.attributedText = mutable
+
+                            // Set cursor position after the newline
+                            let newCursorPosition = range.location + 1
+                            textView.selectedRange = NSRange(location: newCursorPosition, length: 0)
+
+                            // Update typing attributes for subsequent typing (merge to preserve underline if set)
+                            var typingAttrs = textView.typingAttributes
+                            for (key, value) in bodyAttributes {
+                                typingAttrs[key] = value
                             }
+                            // Reset bold/italic for new paragraph after heading
+                            typingAttrs[.font] = bodyAttributes[.font]
+                            textView.typingAttributes = typingAttrs
+
+                            // Notify about the change
+                            parent.attributedText = textView.attributedText
+                            parent.onTextChange()
+                            parent.controller?.notifyFormattingChange()
+
+                            // Return false since we handled the insertion manually
+                            return false
                         }
                     }
                 }
@@ -406,11 +485,11 @@ enum TextStyle: String, CaseIterable {
 
     var lineHeightMultiple: CGFloat {
         switch self {
-        case .title: return 1.3
-        case .heading: return 1.35
-        case .subheading: return 1.4
-        case .body: return 1.7
-        case .caption: return 1.5
+        case .title: return 1.2
+        case .heading: return 1.25
+        case .subheading: return 1.25
+        case .body: return 1.2
+        case .caption: return 1.2
         }
     }
 

@@ -1,17 +1,58 @@
 import Foundation
 import UserNotifications
 
-final class NotificationManager {
+final class NotificationManager: NSObject {
     static let shared = NotificationManager()
 
     private let center = UNUserNotificationCenter.current()
 
-    private init() {}
+    // Notification category identifiers
+    private let nudgeCategoryIdentifier = "NUDGE_CATEGORY"
+    private let snoozeActionIdentifier = "SNOOZE_ACTION"
+
+    // Randomized nudge messages
+    private let nudgeMessages = [
+        "Your story is waiting. Time to write!",
+        "A few words today keeps writer's block away.",
+        "Your thoughts miss you. Time to continue writing.",
+        "Every great writing is written one session at a time.",
+        "You words is calling. Ready to fill it?",
+        // "Your writing streak is waiting to continue.",
+        "Just 10 minutes of writing can make a difference.",
+        "Time to put pen to paper (or fingers to keys).",
+        "Your words matter. Let's keep going.",
+        "The muse is knocking. Time to write!"
+    ]
+
+    private override init() {
+        super.init()
+        setupNotificationCategories()
+    }
+
+    // MARK: - Setup
+
+    private func setupNotificationCategories() {
+        let snoozeAction = UNNotificationAction(
+            identifier: snoozeActionIdentifier,
+            title: "Remind me in 1 hour",
+            options: []
+        )
+
+        let nudgeCategory = UNNotificationCategory(
+            identifier: nudgeCategoryIdentifier,
+            actions: [snoozeAction],
+            intentIdentifiers: [],
+            options: []
+        )
+
+        center.setNotificationCategories([nudgeCategory])
+    }
 
     // MARK: - Permission
 
     func requestPermission() {
         center.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+        center.delegate = self
     }
 
     // MARK: - Nudge Notifications
@@ -25,8 +66,10 @@ final class NotificationManager {
 
         let content = UNMutableNotificationContent()
         content.title = project.title
-        content.body = "Time to write! Keep the momentum going on your piece."
+        content.body = nudgeMessages.randomElement() ?? nudgeMessages[0]
         content.sound = .default
+        content.categoryIdentifier = nudgeCategoryIdentifier
+        content.userInfo = ["projectId": project.id.uuidString, "projectTitle": project.title]
 
         switch project.nudgeMode {
         case .afterInactivity:
@@ -108,6 +151,28 @@ final class NotificationManager {
 
     func cancelInactivityNotification(for projectId: UUID) {
         cancelNudgeNotification(for: projectId)
+    }
+
+    // MARK: - Snooze Notification
+
+    private func scheduleSnoozeNotification(projectId: String, projectTitle: String) {
+        let content = UNMutableNotificationContent()
+        content.title = projectTitle
+        content.body = nudgeMessages.randomElement() ?? nudgeMessages[0]
+        content.sound = .default
+        content.categoryIdentifier = nudgeCategoryIdentifier
+        content.userInfo = ["projectId": projectId, "projectTitle": projectTitle]
+
+        // 1 hour from now
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3600, repeats: false)
+
+        let request = UNNotificationRequest(
+            identifier: "snooze-\(projectId)-\(Date().timeIntervalSince1970)",
+            content: content,
+            trigger: trigger
+        )
+
+        center.add(request)
     }
 
     // MARK: - Deadline Notifications
@@ -218,5 +283,33 @@ final class NotificationManager {
 
     private func deadlineIdentifier(for projectId: UUID, suffix: String) -> String {
         "deadline-\(projectId.uuidString)-\(suffix)"
+    }
+}
+
+// MARK: - UNUserNotificationCenterDelegate
+
+extension NotificationManager: UNUserNotificationCenterDelegate {
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if response.actionIdentifier == snoozeActionIdentifier {
+            let userInfo = response.notification.request.content.userInfo
+            if let projectId = userInfo["projectId"] as? String,
+               let projectTitle = userInfo["projectTitle"] as? String {
+                scheduleSnoozeNotification(projectId: projectId, projectTitle: projectTitle)
+            }
+        }
+        completionHandler()
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        // Show notification even when app is in foreground
+        completionHandler([.banner, .sound])
     }
 }

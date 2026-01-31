@@ -310,6 +310,5 @@ class WritingSessionManager {
         UNUserNotificationCenter.current().removePendingNotificationRequests(
             withIdentifiers: identifiers
         )
-        print("Away reminders cancelled")
     }
 }

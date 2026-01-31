@@ -208,6 +208,9 @@ struct EditorView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         showingShareSheet = true
                     }
+                },
+                onArchive: {
+                    archiveProject()
                 }
             )
         }
@@ -280,11 +283,20 @@ struct EditorView: View {
                 formattingState = state
             }
 
+            // Set initial typing style to Title (H1) for empty documents
+            if attributedText.length == 0 {
+                editorController.setStyleForTyping(.title, isDarkMode: colorScheme == .dark)
+                formattingState.currentStyle = .title
+            }
+
             // Cancel any pending away reminder when returning to editor
             writingSessionManager.cancelAwayReminder()
         }
         .onDisappear {
             endSessionAndScheduleNotification()
+
+            // Sync to cloud when leaving editor
+            SyncManager.shared.editorWillDisappear(project: project)
 
             // Schedule away reminder if leaving during an active writing session
             if writingSessionManager.isSessionActive,
@@ -318,6 +330,9 @@ struct EditorView: View {
         project.attributedContent = attributedText
         project.lastEditedAt = Date()
         sessionManager.updateContent(project.plainTextContent)
+
+        // Trigger cloud sync (debounced)
+        SyncManager.shared.contentDidChange(project: project)
 
         // Check writing session goal progress
         checkSessionProgress()
@@ -467,6 +482,32 @@ struct EditorView: View {
         if result.countsAsProgress {
             project.lastProgressAt = Date()
             NotificationManager.shared.scheduleInactivityNotification(for: project)
+        }
+    }
+
+    // MARK: - Archive
+
+    private func archiveProject() {
+        // Close the settings panel first
+        withAnimation(.easeInOut(duration: 0.25)) {
+            showingSettings = false
+        }
+
+        // Cancel notifications for archived projects
+        NotificationManager.shared.cancelAllNotifications(for: project.id)
+
+        // Archive the project
+        project.isArchived = true
+        project.needsSync = true
+
+        // Sync to cloud
+        Task {
+            await SyncManager.shared.uploadProject(project)
+        }
+
+        // Navigate back to home after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            dismiss()
         }
     }
 }

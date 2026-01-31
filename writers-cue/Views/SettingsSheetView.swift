@@ -2,7 +2,6 @@ import SwiftUI
 
 struct SettingsSheetView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
 
     @Binding var documentTitle: String
     @Binding var maxInactivityHours: Int
@@ -16,12 +15,24 @@ struct SettingsSheetView: View {
     @State private var editingTitle: String = ""
     @FocusState private var isTitleFocused: Bool
 
+    // Get ACTUAL system color scheme (not the sheet's overridden context)
+    private var systemColorScheme: ColorScheme {
+        // UIScreen.main.traitCollection gives the real system setting,
+        // not the view's overridden preferredColorScheme
+        UIScreen.main.traitCollection.userInterfaceStyle == .dark ? .dark : .light
+    }
+
+    // Use explicit color scheme - for auto, detect actual system setting
+    private var effectiveColorScheme: ColorScheme {
+        themeManager.colorScheme ?? systemColorScheme
+    }
+
     private var currentColors: ThemeColors {
-        themeManager.colors(for: colorScheme)
+        themeManager.colors(for: effectiveColorScheme)
     }
 
     private var inputBackground: Color {
-        colorScheme == .dark ? Color(hex: "333333") : Color(hex: "F0F0F0")
+        effectiveColorScheme == .dark ? Color(hex: "333333") : Color(hex: "F0F0F0")
     }
 
     // Computed binding for time picker
@@ -87,7 +98,7 @@ struct SettingsSheetView: View {
                                     Spacer()
                                     Toggle("", isOn: $nudgeEnabled)
                                         .labelsHidden()
-                                        .tint(.blue)
+                                        .tint(Color(hex: "E4CFBA"))
                                 }
                                 .padding(14)
                                 .background(
@@ -105,7 +116,7 @@ struct SettingsSheetView: View {
                                                 HStack {
                                                     Image(systemName: nudgeMode == mode ? "circle.inset.filled" : "circle")
                                                         .font(.system(size: 18))
-                                                        .foregroundStyle(nudgeMode == mode ? .blue : Color.primary.opacity(0.4))
+                                                        .foregroundStyle(nudgeMode == mode ? Color(hex: "E4CFBA") : Color.primary.opacity(0.4))
                                                     Text(mode.displayName)
                                                         .font(.system(size: 15))
                                                         .foregroundStyle(Color.primary.opacity(0.8))
@@ -158,7 +169,7 @@ struct SettingsSheetView: View {
                                         Spacer()
                                         DatePicker("", selection: nudgeTime, displayedComponents: .hourAndMinute)
                                             .labelsHidden()
-                                            .tint(.blue)
+                                            .tint(Color(hex: "E4CFBA"))
                                     }
                                     .padding(14)
                                     .background(
@@ -225,7 +236,8 @@ struct SettingsSheetView: View {
         .onAppear {
             editingTitle = documentTitle
         }
-        .preferredColorScheme(themeManager.colorScheme)
+        .preferredColorScheme(effectiveColorScheme)
+        .id(effectiveColorScheme) // Force full view recreation when theme changes
     }
 
     private func settingsSection<Content: View>(
@@ -270,7 +282,7 @@ struct SettingsSheetView: View {
             .padding(.vertical, 16)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? Color(hex: "D6E5F5").opacity(colorScheme == .dark ? 0.2 : 1.0) : inputBackground)
+                    .fill(isSelected ? Color(hex: "D6E5F5").opacity(effectiveColorScheme == .dark ? 0.2 : 1.0) : inputBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)

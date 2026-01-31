@@ -62,6 +62,13 @@ final class WritingProject {
     var nudgeTimeMinute: Int?  // Minute component (0-59) for preferred nudge time
     var nudgeEnabledRaw: Bool?  // Whether nudges are enabled at all
 
+    // Sync settings (optional for migration compatibility)
+    var lastSyncedAt: Date?  // When this project was last synced with cloud
+    var needsSyncRaw: Bool?  // Whether the project has local changes pending upload
+
+    // Archive setting (optional for migration compatibility)
+    var isArchivedRaw: Bool?  // Whether the project is archived
+
     // Computed properties with defaults for nil values
     var nudgeMode: NudgeMode {
         get { NudgeMode(rawValue: nudgeModeRaw ?? 0) ?? .afterInactivity }
@@ -81,6 +88,16 @@ final class WritingProject {
     var nudgeEnabled: Bool {
         get { nudgeEnabledRaw ?? (maxInactivityHours > 0) }
         set { nudgeEnabledRaw = newValue }
+    }
+
+    var needsSync: Bool {
+        get { needsSyncRaw ?? false }
+        set { needsSyncRaw = newValue }
+    }
+
+    var isArchived: Bool {
+        get { isArchivedRaw ?? false }
+        set { isArchivedRaw = newValue }
     }
 
     /// Returns the next occurrence of the preferred nudge time
@@ -184,5 +201,10 @@ final class WritingProject {
 
         // More than a week
         return "Last edited last week"
+    }
+
+    /// Shorter status text for secondary cards: "Last edited 2h ago", "Last edited 3d ago"
+    var secondaryStatusText: String {
+        "Last edited \(lastEditedDescription)"
     }
 }

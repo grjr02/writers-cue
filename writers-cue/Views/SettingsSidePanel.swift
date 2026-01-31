@@ -9,6 +9,7 @@ struct SettingsSidePanel: View {
     @Binding var nudgeMinute: Int
     @Binding var nudgeEnabled: Bool
     let onShare: () -> Void
+    let onArchive: () -> Void
 
     @State private var editingTitle: String = ""
     @FocusState private var isTitleFocused: Bool
@@ -120,7 +121,7 @@ struct SettingsSidePanel: View {
                                 Spacer()
                                 Toggle("", isOn: $nudgeEnabled)
                                     .labelsHidden()
-                                    .tint(.blue)
+                                    .tint(Color(hex: "E4CFBA"))
                             }
                             .padding(14)
                             .background(
@@ -138,7 +139,7 @@ struct SettingsSidePanel: View {
                                             HStack {
                                                 Image(systemName: nudgeMode == mode ? "circle.inset.filled" : "circle")
                                                     .font(.system(size: 18))
-                                                    .foregroundStyle(nudgeMode == mode ? .blue : Color.primary.opacity(0.4))
+                                                    .foregroundStyle(nudgeMode == mode ? Color(hex: "E4CFBA") : Color.primary.opacity(0.4))
                                                 Text(mode.displayName)
                                                     .font(.system(size: 15))
                                                     .foregroundStyle(Color.primary.opacity(0.8))
@@ -191,7 +192,7 @@ struct SettingsSidePanel: View {
                                     Spacer()
                                     DatePicker("", selection: nudgeTime, displayedComponents: .hourAndMinute)
                                         .labelsHidden()
-                                        .tint(.blue)
+                                        .tint(Color(hex: "E4CFBA"))
                                 }
                                 .padding(14)
                                 .background(
@@ -224,6 +225,24 @@ struct SettingsSidePanel: View {
                                 Image(systemName: "chevron.right")
                                     .font(.system(size: 12, weight: .medium))
                                     .foregroundStyle(Color.primary.opacity(0.4))
+                            }
+                            .foregroundStyle(Color.primary.opacity(0.8))
+                            .padding(14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(inputBackground)
+                            )
+                        }
+                    }
+
+                    settingsSection(title: "ARCHIVE", icon: "archivebox") {
+                        Button(action: onArchive) {
+                            HStack {
+                                Image(systemName: "archivebox")
+                                    .font(.system(size: 15, weight: .medium))
+                                Text("Archive Piece")
+                                    .font(.system(size: 15, weight: .medium))
+                                Spacer()
                             }
                             .foregroundStyle(Color.primary.opacity(0.8))
                             .padding(14)

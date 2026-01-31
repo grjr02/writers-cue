@@ -27,7 +27,7 @@ struct writers_cueApp: App {
 
     var body: some Scene {
         WindowGroup {
-            HomeView()
+            AuthContainerView()
                 .onAppear {
                     NotificationManager.shared.requestPermission()
                 }
@@ -48,8 +48,11 @@ struct writers_cueApp: App {
         case .active:
             NotificationManager.shared.refreshNotifications(for: projects)
         case .background:
+            // Sync pending changes to cloud
+            SyncManager.shared.appDidEnterBackground(projects: projects)
+
+            // Schedule notifications
             for project in projects {
-                // Schedule nudge notifications (handles both modes)
                 if project.nudgeEnabled {
                     NotificationManager.shared.scheduleNudgeNotification(for: project)
                 }
